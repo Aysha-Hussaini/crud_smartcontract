@@ -1,71 +1,252 @@
 import React, { Component } from "react";
-import SimpleStorageContract from "./contracts/SimpleStorage.json";
-import getWeb3 from "./getWeb3";
+import Crud from "./contracts/crud.json";
+import Web3 from "web3";
 
 import "./App.css";
 
 class App extends Component {
-  state = { storageValue: 0, web3: null, accounts: null, contract: null };
+  componentDidMount = async() => {
+    await this.loadWeb3();
+    await this.loadBlockchainData();
+  } 
 
-  componentDidMount = async () => {
-    try {
-      // Get network provider and web3 instance.
-      const web3 = await getWeb3();
-
-      // Use web3 to get the user's accounts.
-      const accounts = await web3.eth.getAccounts();
-
-      // Get the contract instance.
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = SimpleStorageContract.networks[networkId];
-      const instance = new web3.eth.Contract(
-        SimpleStorageContract.abi,
-        deployedNetwork && deployedNetwork.address,
-      );
-
-      // Set web3, accounts, and contract to the state, and then proceed with an
-      // example of interacting with the contract's methods.
-      this.setState({ web3, accounts, contract: instance }, this.runExample);
-    } catch (error) {
-      // Catch any errors for any of the above operations.
-      alert(
-        `Failed to load web3, accounts, or contract. Check console for details.`,
-      );
-      console.error(error);
+  async loadWeb3() {
+    if(window.ethereum){
+      window.web3 = new Web3(window.ethereum);
+      await window.ethereum.enable();
     }
-  };
+    else if(window.web3){
+      window.web3 = new Web3(window.web3.currentProvider)
+    }
+    else {
+      window.alert('We b3 browser not detected. Try using Metamask');
+    }
+  }
+  async loadBlockchainData() {
+    let web3 = window.web3;
+    const accounts = await web3.eth.getAccounts();
+    console.log(accounts[0])
+    this.setState({account:accounts[0]});
+    const networkId = await web3.eth.net.getId();
+    const deployedNetwork = Crud.networks[networkId];
+    const crudInstance = new web3.eth.Contract(
+      Crud.abi, 
+      deployedNetwork && deployedNetwork.address
+      );
+    this.setState({crudInstance: crudInstance});
+  }
+  constructor(props){
+    super(props);
+    this.state = {
+      account: '',
+      crudInstance : null,
+      updatedText:'',
+      updatedReadText: '',
+      updatedEditText:'',
+      updatedDeleteText:'',
+    }
+    // this.handleCreate = this.handleCreate.bind(this);
+    // this.handleRead = this.handleRead.bind(this);
+    // this.handleEdit = this.handleEdit.bind(this);
+    // this.handleDelete = this.handleDelete.bind(this);
+  }
 
-  runExample = async () => {
-    const { accounts, contract } = this.state;
+  async handleCreate(usersName){
+    await this.state.crudInstance.methods.create(usersName).send({from:this.state.account});
+    var nextId = await this.state.crudInstance.methods.nextId.call().call();
+    this.setState({updatedText:`New user ${usersName} has been created with Id ${nextId-1}`});
+  }
 
-    // Stores a given value, 5 by default.
-    await contract.methods.set(5).send({ from: accounts[0] });
+  async handleRead(readId){
+    try{
+      var readData= await this.state.crudInstance.methods.read(readId).call();
+      console.log(readData)
+      this.setState({updatedReadText:`The User at ${readId} is ${readData[1]}`});
+    }catch(e){
+      this.setState({updatedReadText:"User does not exist"});
+    }
+  }
 
-    // Get the value from the contract to prove it worked.
-    const response = await contract.methods.get().call();
-
-    // Update state with the result.
-    this.setState({ storageValue: response });
-  };
+  async handleEdit(editId, editName){
+    try{
+     await this.state.crudInstance.methods.update(editId, editName).send({from: this.state.account});
+      this.setState({updatedEditText:`The User at ${editId} is updated to ${editName}`});
+    }catch(e){
+      this.setState({updatedEditText:"User does not exist"})
+    }
+  }
+  
+  async handleDelete(deleteId){
+    try{
+    await this.state.crudInstance.methods.deletE(deleteId).send({from: this.state.account});
+    this.setState({updatedDeleteText:`The User at ${deleteId} is removed`});
+    } catch(e){
+      this.setState({updatedDeleteText:"User does not exist"})
+    }
+  }
 
   render() {
-    if (!this.state.web3) {
-      return <div>Loading Web3, accounts, and contract...</div>;
-    }
     return (
-      <div className="App">
-        <h1>Good to Go!</h1>
-        <p>Your Truffle Box is installed and ready.</p>
-        <h2>Smart Contract Example</h2>
-        <p>
-          If your contracts compiled and migrated successfully, below will show
-          a stored value of 5 (by default).
-        </p>
-        <p>
-          Try changing the value stored on <strong>line 42</strong> of App.js.
-        </p>
-        <div>The stored value is: {this.state.storageValue}</div>
-      </div>
+     <div>
+       <nav className ="navbar navbar-dark bg-primary fixed-top flex-nowrap">
+        <a
+        className ="navbar-brand"
+        href="https://github.com/Aysha-Hussaini/crud_smartcontract">
+          Create Read Update Delete Dapp
+        </a>
+       </nav>
+       <div className="container mt-5 mr-5 ml-5">
+         <div >
+            <main >
+              <div className="mr-auto ml-auto">
+                <h1 className="text-center pt-4 pb-4">CRUD Application </h1>
+                <img src= {require('./crud.jpeg')} alt="logo" className="img-fluid mx-auto d-block pb-4" width="200" height="100" />
+              </div>
+              <div className="row">
+                <div className="col-sm-6 ">
+                  <div className="card ">
+                    <div className="card-body">
+                      <h5 className="card-title">
+                        Create a User
+                      </h5>
+                      <form 
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const usersName= this.usersName.value;
+                        this.handleCreate(usersName);
+                        }}>
+                        <div className="form-group" >
+                          <input
+                            id = "usersName"
+                            className="form-control"
+                            type="text"
+                            ref={(input) => {this.usersName = input}}
+                            placeholder="Enter name of the user"
+                            //onChange={(e) => this.setState({submittedUser: e.target.value})}
+                            required/>
+                            <div className="pb-2"/>
+                            <button type="submit" className= "btn btn-primary" >
+                              Submit
+                            </button>
+                            <div className="mt-2"/>
+                            <p className="text-weight-light"> 
+                              {this.state.updatedText}
+                            </p>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-sm-6">
+                  <div className="card">
+                    <div className="card-body">
+                      <h5 className="card-title">
+                        Enter Id to Read the user name
+                      </h5>
+                      <form onSubmit={(event) => {
+                        event.preventDefault();
+                        const readId = this.readId.value; 
+                        this.handleRead(readId);
+                        }}>
+                        <div className="form-group">
+                          <input
+                            id = "readId"
+                            className="form-control"  
+                            type="text"
+                            ref={(input) => {this.readId = input}}
+                            placeholder="Enter Id"
+                            //onChange={(e) => this.setState({submittedId: e.target.value})}
+                            required/>
+                            <div className="pb-2"/>
+                            <button type="submit" className= "btn btn-primary">Submit</button>
+                            <div className="mt-2"/>
+                            <p className="text-weight-light"> 
+                              {this.state.updatedReadText} 
+                            </p>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-4"/>
+              <div className="row">
+                <div className="col-sm-6 ">
+                  <div className="card ">
+                    <div className="card-body">
+                      <h5 className="card-title">
+                        Update the User's Name
+                      </h5>
+                      <form onSubmit={(event) => {
+                        event.preventDefault();
+                        const editId=this.editId.value;
+                        const editName=this.editName.value;
+                        this.handleEdit(editId, editName);
+                        }}>
+                        <div className="form-group">
+                          <input
+                            id = "editId"
+                            className="form-control"
+                            type="text"
+                            ref={(input) => {this.editId = input}}
+                            placeholder="Enter Id of the user to edit"
+                            required/>
+                            <div className="mt-2"/>
+                          <input
+                            id = "editName"
+                            className="form-control"
+                            type="text"
+                            ref={(input) => {this.editName = input}}
+                            placeholder="Enter the name to update"
+                            required/>  
+                            <div className="pb-2"/>
+                            <button type="submit" className= "btn btn-primary">Submit</button>
+                            <div className="mt-2"/>
+                            <p className="text-weight-light"> 
+                            {this.state.updatedEditText} 
+                            </p>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-sm-6">
+                  <div className="card">
+                    <div className="card-body">
+                      <h5 className="card-title">
+                        Enter Id to Delete the user
+                      </h5>
+                      <form onSubmit={(event) => {
+                        event.preventDefault();
+                        const deleteId=this.deleteId.value;
+                        this.handleDelete(deleteId);
+                        }}>
+                        <div className="form-group">
+                          <input
+                            id = "deleteId"
+                            className="form-control"
+                            type="text"
+                            ref={(input) => {this.deleteId = input}}
+                            placeholder="Enter Id"
+                            required/>
+                            <div className="pb-2"/>
+                            <button type="submit" className= "btn btn-primary">Submit</button>
+                            <div className="mt-2"/>
+                            <p className="text-weight-light"> 
+                            {this.state.updatedDeleteText} 
+                            </p>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+                
+              </div>
+            </main>
+         </div>
+       </div>
+    </div> 
+     
     );
   }
 }
