@@ -31,7 +31,7 @@ In client directory:
 npm run start
 ```
 
-![alt text](https://github.com/Aysha-Hussaini/crud_smartcontract/main/Screen-Shot.png?raw=true)
+![alt text](https://github.com/Aysha-Hussaini/crud_smartcontract/blob/9b928c8b1fbf0c3e089fa9f17068b7f020126695/Screen-Shot%20.png?raw=true)
 
 
 
