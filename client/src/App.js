@@ -28,7 +28,9 @@ class App extends Component {
     console.log(accounts[0])
     this.setState({account:accounts[0]});
     const networkId = await web3.eth.net.getId();
+    
     const deployedNetwork = Crud.networks[networkId];
+    console.log(networkId);
     const crudInstance = new web3.eth.Contract(
       Crud.abi, 
       deployedNetwork && deployedNetwork.address
